@@ -398,3 +398,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+Sachya/.env
+/Sachya/.idea
+SachyaTests/.env

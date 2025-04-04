@@ -4,7 +4,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-
+namespace Sachya;
 public class SteamWebApiClient
 {
     private readonly HttpClient _client;
@@ -17,13 +17,15 @@ public class SteamWebApiClient
     public SteamWebApiClient(string apiKey = null)
     {
         _client = new HttpClient();
+        _client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0");
         _client.BaseAddress = new Uri("http://api.steampowered.com/");
         _apiKey = apiKey;
     }
 
     private async Task<T> GetAsync<T>(string url, string suffix = "&format=json")
     {
-        using HttpResponseMessage response = await _client.GetAsync(url + suffix);
+        
+        using HttpResponseMessage response = await _client.GetAsync(url + suffix).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         string json = await response.Content.ReadAsStringAsync();
         return JsonSerializer.Deserialize<T>(json);

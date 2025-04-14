@@ -1590,10 +1590,12 @@ using System.Web; // Add reference to System.Web if needed, or use HttpUtility f
         public string? ImageIcon { get; init; }
         public int ConsoleID { get; init; }
         public string? ConsoleName { get; init; }
-        public int MaxPossible { get; init; } // Achievement count for the game
-        public int NumAwarded { get; init; } // Achievements awarded to user (HC or SC)
-        public decimal PctWon { get; init; } // As decimal (e.g., 1.0000)
-        public string? HardcoreMode { get; init; } // "0" or "1"
+        public int MaxPossible { get; init; }
+        public int NumAwarded { get; init; }
+        public string? PctWon { get; init; } // Changed from decimal to string
+        [JsonIgnore]
+        public decimal PctWonDecimal => decimal.TryParse(PctWon, out var result) ? result : 0m;
+        public string? HardcoreMode { get; init; }
         [JsonIgnore]
         public bool IsHardcore => HardcoreMode == "1";
     }

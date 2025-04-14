@@ -9,38 +9,49 @@ public class RaDateTimeConverter : JsonConverter<DateTime>
 
     public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        // Handle null values in the JSON
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            // Return a default value for null dates
+            return DateTime.MinValue;
+        }
+
         if (reader.TokenType != JsonTokenType.String)
         {
-            throw new JsonException($"Unexpected token type {reader.TokenType}. Expected String.");
+            throw new JsonException($"Unexpected token type {reader.TokenType}. Expected String or Null.");
         }
 
         string? dateString = reader.GetString();
         if (string.IsNullOrWhiteSpace(dateString))
         {
-            // Decide how to handle null/empty strings. Throw or return default?
-            // Returning default might hide issues. Let's throw for clarity.
-            throw new JsonException("DateTime string was null or empty.");
+            // Handle empty strings as defaults too
+            return DateTime.MinValue;
         }
 
         // Use ParseExact with the specific format and InvariantCulture
-        // Use DateTimeStyles.None as the string doesn't have timezone info.
-        // The resulting DateTime will have Kind = Unspecified.
         if (DateTime.TryParseExact(dateString, Format, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime result))
         {
             return result;
         }
-        else
+        
+        // Try parsing with more flexible DateTime.Parse as fallback
+        if (DateTime.TryParse(dateString, CultureInfo.InvariantCulture, DateTimeStyles.None, out result))
         {
-             // Could also try parsing standard ISO formats as a fallback if needed,
-             // but for this specific converter, let's stick to the expected format.
-            throw new JsonException($"Could not parse DateTime string '{dateString}' using format '{Format}'.");
+            return result;
         }
+
+        throw new JsonException($"Could not parse DateTime string '{dateString}' using format '{Format}'.");
     }
 
     public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
     {
-        // Write back out in the same format the API uses, or use ISO "o" format for standards compliance
-         // writer.WriteStringValue(value.ToString("o", CultureInfo.InvariantCulture)); // ISO Standard
-         writer.WriteStringValue(value.ToString(Format, CultureInfo.InvariantCulture)); // Match API format
+        // Special handling for the MinValue sentinel (which represents null)
+        if (value == DateTime.MinValue)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+        
+        writer.WriteStringValue(value.ToString(Format, CultureInfo.InvariantCulture));
     }
 }

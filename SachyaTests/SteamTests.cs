@@ -108,6 +108,14 @@ public class SteamTests
         }
     }
 
+    [SetUp]
+    public async Task BeforeEach()
+    {
+        //delay every test 1s to prevent rate limits
+        await Task.Delay(1000);
+    }
+
+    
     [Test]
     public async Task GetRecentlyPlayedGames()
     {

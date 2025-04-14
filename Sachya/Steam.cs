@@ -24,13 +24,68 @@ public class SteamWebApiClient
 
     private async Task<T> GetAsync<T>(string url, string suffix = "&format=json")
     {
-        
-        using HttpResponseMessage response = await _client.GetAsync(url + suffix).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        string json = await response.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<T>(json);
-    }
+        int maxRetries = 3;
+        int retryCount = 0;
+        TimeSpan delay = TimeSpan.FromSeconds(1);
+        TimeSpan maxDelay = TimeSpan.FromSeconds(30);
+        Random jitter = new Random();
 
+        while (true)
+        {
+            try
+            {
+                using HttpResponseMessage response = await _client.GetAsync(url + suffix).ConfigureAwait(false);
+                
+                // If we get a rate limit or server error, retry with backoff
+                if ((int)response.StatusCode == 429 || (int)response.StatusCode >= 500)
+                {
+                    if (retryCount >= maxRetries)
+                        response.EnsureSuccessStatusCode(); // Will throw if we're out of retries
+                    
+                    retryCount++;
+                    await Task.Delay(delay).ConfigureAwait(false);
+                    
+                    // Exponential backoff with jitter
+                    delay = TimeSpan.FromMilliseconds(
+                        Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2) * 
+                        (0.8 + jitter.NextDouble() * 0.4));
+                    
+                    continue;
+                }
+                
+                response.EnsureSuccessStatusCode();
+                string json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<T>(json);
+            }
+            catch (HttpRequestException ex) when (retryCount < maxRetries && 
+                                                (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests || 
+                                                 (ex.StatusCode >= System.Net.HttpStatusCode.InternalServerError)))
+            {
+                retryCount++;
+                await Task.Delay(delay).ConfigureAwait(false);
+                
+                // Exponential backoff with jitter
+                delay = TimeSpan.FromMilliseconds(
+                    Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2) * 
+                    (0.8 + jitter.NextDouble() * 0.4));
+            }
+            catch (Exception) when (retryCount < maxRetries)
+            {
+                // For other exceptions that might be transient
+                retryCount++;
+                await Task.Delay(delay).ConfigureAwait(false);
+                delay = TimeSpan.FromMilliseconds(Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2));
+            }
+        }
+    }
+    
+    public Task<GameSchemaResult> GetSchemaForGameAsync(int appid)
+    {
+        string keyParam = !string.IsNullOrWhiteSpace(_apiKey) ? $"key={_apiKey}&" : "";
+        var url = $"ISteamUserStats/GetSchemaForGame/v2/?{keyParam}appid={appid}";
+        return GetAsync<GameSchemaResult>(url);
+    }
+    
     public Task<NewsForAppResult> GetNewsForAppAsync(int appid, int count = 3, int maxLength = 300)
     {
         var url = $"ISteamNews/GetNewsForApp/v0002/?appid={appid}&count={count}&maxlength={maxLength}";
@@ -247,6 +302,29 @@ public class RecentlyPlayedGamesResponse
 {
     public int total_count { get; set; }
     public List<Game> games { get; set; }
+}
+public class GameSchemaResult
+{
+    public GameSchema game { get; set; }
+}
+
+public class GameSchema
+{
+    public AvailableGameStats availableGameStats { get; set; }
+}
+
+public class AvailableGameStats
+{
+    public List<AchievementDefinition> achievements { get; set; }
+}
+
+public class AchievementDefinition
+{
+    public string name { get; set; }
+    public string displayName { get; set; }
+    public string description { get; set; }
+    public string icon { get; set; }
+    public string icongray { get; set; }
 }
 
 public class AchievementPercentagesResult

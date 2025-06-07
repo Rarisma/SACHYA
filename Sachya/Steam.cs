@@ -155,7 +155,26 @@ public class SteamWebApiClient
 
 //Mapping Classes.
 #region Model Classes
+/// <summary>
+/// Response from the Steam ResolveVanityURL API
+/// </summary>
+public class VanityUrlResponse
+{
+    [JsonPropertyName("response")]
+    public VanityUrlResult? response { get; set; }
 
+    public class VanityUrlResult
+    {
+        [JsonPropertyName("success")]
+        public int success { get; set; }
+
+        [JsonPropertyName("steamid")]
+        public string? steamid { get; set; }
+
+        [JsonPropertyName("message")]
+        public string? message { get; set; }
+    }
+}
 // GetNewsForApp
 public class NewsForAppResult
 {
@@ -324,6 +343,8 @@ public class AchievementDefinition
     public string displayName { get; set; }
     public string description { get; set; }
     public string icon { get; set; }
+    
+    public int hidden { get; set; }
     public string icongray { get; set; }
 }
 

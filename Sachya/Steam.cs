@@ -151,6 +151,18 @@ public class SteamWebApiClient
             url += $"&count={count}";
         return GetAsync<RecentlyPlayedGamesResult>(url);
     }
+
+    /// <summary>
+    /// Resolves a Steam vanity URL to a Steam ID.
+    /// </summary>
+    /// <param name="vanityUrl">The user's vanity URL name.</param>
+    /// <returns>A VanityUrlResponse containing the resolution result.</returns>
+    public async Task<VanityUrlResponse> ResolveVanityUrlAsync(string vanityUrl)
+    {
+        string keyParam = !string.IsNullOrWhiteSpace(_apiKey) ? $"key={_apiKey}&" : "";
+        var url = $"ISteamUser/ResolveVanityURL/v1/?{keyParam}vanityurl={vanityUrl}";
+        return await GetAsync<VanityUrlResponse>(url);
+    }
 }
 
 //Mapping Classes.

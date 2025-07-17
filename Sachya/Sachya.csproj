@@ -9,10 +9,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Objects\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <Content Update=".env">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>

@@ -18,7 +18,7 @@ public class SteamWebApiClient
     {
         _client = new HttpClient();
         _client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0");
-        _client.BaseAddress = new Uri("http://api.steampowered.com/");
+        _client.BaseAddress = new Uri("https://api.steampowered.com/");
         _apiKey = apiKey;
     }
 
@@ -131,15 +131,18 @@ public class SteamWebApiClient
         return GetAsync<PlayerAchievementsResult>(url);
     }
 
-    public Task<OwnedGamesResult> GetOwnedGamesAsync(string steamid, bool includeAppInfo = false, bool includePlayedFreeGames = false, int[] appidsFilter = null)
+    public Task<OwnedGamesResult> GetOwnedGamesAsync(string steamid, bool includeAppInfo = false, bool includePlayedFreeGames = false, int[]? appidsFilter = null)
     {
         string keyParam = !string.IsNullOrWhiteSpace(_apiKey) ? $"key={_apiKey}&" : "";
-        var url = $"IPlayerService/GetOwnedGames/v0001/?{keyParam}steamid={steamid}&include_appinfo={includeAppInfo}&include_played_free_games={includePlayedFreeGames}";
-        if (appidsFilter != null && appidsFilter.Length > 0)
+        var url = $"IPlayerService/GetOwnedGames/v0001/?{keyParam}steamid={steamid}" +
+                  $"&include_appinfo={includeAppInfo}&include_played_free_games={includePlayedFreeGames}";
+        
+        //set appid filter
+        if (appidsFilter != null && appidsFilter.Length != 0)
         {
-            var jsonFilter = JsonSerializer.Serialize(new { appids_filter = appidsFilter });
-            url += $"&input_json={Uri.EscapeDataString(jsonFilter)}";
+            for (int index = 0; index < appidsFilter.Length; index++) { url += $"&appids_filter[{index}]={appidsFilter[index]}"; }
         }
+
         return GetAsync<OwnedGamesResult>(url);
     }
 

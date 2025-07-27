@@ -95,42 +95,91 @@ using System.Web; // Add reference to System.Web if needed, or use HttpUtility f
 
             var url = BuildUrl(baseUrl, endpoint, queryParams);
 
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            int maxRetries = 3;
+            int retryCount = 0;
+            TimeSpan delay = TimeSpan.FromSeconds(1);
+            TimeSpan maxDelay = TimeSpan.FromSeconds(30);
+            Random jitter = new Random();
 
-            if (baseUrl == ConnectApiBaseUrl)
+            while (true)
             {
-                if (string.IsNullOrWhiteSpace(ConnectApiUserAgent))
+                try
                 {
-                    throw new InvalidOperationException($"{nameof(ConnectApiUserAgent)} must be set for Connect API calls.");
+                    using var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+                    if (baseUrl == ConnectApiBaseUrl)
+                    {
+                        if (string.IsNullOrWhiteSpace(ConnectApiUserAgent))
+                        {
+                            throw new InvalidOperationException($"{nameof(ConnectApiUserAgent)} must be set for Connect API calls.");
+                        }
+                        request.Headers.UserAgent.ParseAdd(ConnectApiUserAgent);
+                    }
+
+                    var response = await _httpClient.SendAsync(request, cancellationToken);
+                    
+                    // If we get a rate limit or server error, retry with backoff
+                    if ((int)response.StatusCode == 429 || (int)response.StatusCode >= 500)
+                    {
+                        if (retryCount >= maxRetries)
+                            response.EnsureSuccessStatusCode(); // Will throw if we're out of retries
+                        
+                        retryCount++;
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                        
+                        // Exponential backoff with jitter
+                        delay = TimeSpan.FromMilliseconds(
+                            Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2) * 
+                            (0.8 + jitter.NextDouble() * 0.4));
+                        
+                        continue;
+                    }
+                    
+                    response.EnsureSuccessStatusCode();
+
+                    var json = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                    try
+                    {
+                        // Handle endpoints returning an array at the root
+                        if (typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(List<>))
+                        {
+                             return JsonSerializer.Deserialize<T>(json, _jsonSerializerOptions) ?? Activator.CreateInstance<T>();
+                        }
+                         // Handle endpoints returning a dictionary at the root
+                        if (typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Dictionary<,>))
+                        {
+                             return JsonSerializer.Deserialize<T>(json, _jsonSerializerOptions) ?? Activator.CreateInstance<T>();
+                        }
+
+                        // Most endpoints return an object
+                        return JsonSerializer.Deserialize<T>(json, _jsonSerializerOptions)
+                               ?? throw new InvalidOperationException($"Failed to deserialize JSON response to type {typeof(T).Name}. Response was: {json}");
+                    }
+                    catch (JsonException ex)
+                    {
+                        throw new InvalidOperationException($"JSON deserialization failed: {ex.Message}. Response was: {json}", ex);
+                    }
                 }
-                request.Headers.UserAgent.ParseAdd(ConnectApiUserAgent);
-            }
-
-            var response = await _httpClient.SendAsync(request, cancellationToken);
-            response.EnsureSuccessStatusCode(); // Throws if not 2xx
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
-
-            try
-            {
-                // Handle endpoints returning an array at the root
-                if (typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(List<>))
+                catch (HttpRequestException ex) when (retryCount < maxRetries && 
+                                                    (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests || 
+                                                     (ex.StatusCode >= System.Net.HttpStatusCode.InternalServerError)))
                 {
-                     return JsonSerializer.Deserialize<T>(json, _jsonSerializerOptions) ?? Activator.CreateInstance<T>();
+                    retryCount++;
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    
+                    // Exponential backoff with jitter
+                    delay = TimeSpan.FromMilliseconds(
+                        Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2) * 
+                        (0.8 + jitter.NextDouble() * 0.4));
                 }
-                 // Handle endpoints returning a dictionary at the root
-                if (typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Dictionary<,>))
+                catch (Exception) when (retryCount < maxRetries)
                 {
-                     return JsonSerializer.Deserialize<T>(json, _jsonSerializerOptions) ?? Activator.CreateInstance<T>();
+                    // For other exceptions that might be transient
+                    retryCount++;
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    delay = TimeSpan.FromMilliseconds(Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2));
                 }
-
-                // Most endpoints return an object
-                return JsonSerializer.Deserialize<T>(json, _jsonSerializerOptions)
-                       ?? throw new InvalidOperationException($"Failed to deserialize JSON response to type {typeof(T).Name}. Response was: {json}");
-            }
-            catch (JsonException ex)
-            {
-                throw new InvalidOperationException($"JSON deserialization failed: {ex.Message}. Response was: {json}", ex);
             }
         }
 
@@ -1246,6 +1295,8 @@ using System.Web; // Add reference to System.Web if needed, or use HttpUtility f
     public record AchievementCoreInfo
     {
         public int ID { get; init; }
+        public int? NumAwarded { get; init; }
+        public int? NumAwardedHardcore { get; init; }
         public string? Title { get; init; }
         public string? Description { get; init; }
         public int Points { get; init; }
@@ -1823,32 +1874,3 @@ using System.Web; // Add reference to System.Web if needed, or use HttpUtility f
     }
 
     public record RecentGameAwardsResponse : PaginatedResponse<RecentGameAward> { }
-
-    // --- Custom Json Converters (Example - Adapt if needed) ---
-    // public class CustomDateTimeConverter : JsonConverter<DateTime>
-    // {
-    //     public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    //     {
-    //         if (reader.TokenType == JsonTokenType.String)
-    //         {
-    //             // Try parsing multiple formats if necessary
-    //             if (DateTime.TryParse(reader.GetString(), out DateTime result))
-    //             {
-    //                 return result;
-    //             }
-    //             if (DateTime.TryParseExact(reader.GetString(), "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out result))
-    //             {
-    //                 return result;
-    //             }
-                 // Add more formats if needed
-    //         }
-    //         // Handle other token types or throw exception
-    //         throw new JsonException($"Unexpected token type {reader.TokenType} when parsing DateTime.");
-    //     }
-
-    //     public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
-    //     {
-             // Default writing is usually fine (ISO 8601)
-    //         writer.WriteStringValue(value.ToString("o"));
-    //     }
-    // }

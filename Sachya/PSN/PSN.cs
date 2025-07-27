@@ -1,12 +1,7 @@
 using System.Net;
-using System;
 using System.Text.Json.Serialization;
-using System;
-using System.Collections.Generic;
-using System.Text.Json.Serialization;
-using Sachya;
 
-namespace Sachya
+namespace Sachya.PSN
 {
     public record EarnedTrophiesSummary
     {
@@ -152,7 +147,7 @@ namespace Sachya
         [JsonPropertyName("progressedDateTime")]
         public DateTimeOffset? ProgressedDateTime { get; init; } // PS5 Only
         [JsonPropertyName("earnedDateTime")]
-        public DateTimeOffset? EarnedDateTime { get; init; } // If earned is true
+        public DateTime? EarnedDateTime { get; init; } // If earned is true
         [JsonPropertyName("trophyType")]
         public string TrophyType { get; init; } = string.Empty;
         [JsonPropertyName("trophyRare")]
@@ -219,18 +214,10 @@ namespace Sachya
     {
         [JsonPropertyName("trophySetVersion")]
         public string TrophySetVersion { get; init; } = string.Empty;
-        [JsonPropertyName("trophyTitleName")]
-        public string TrophyTitleName { get; init; } = string.Empty;
-        [JsonPropertyName("trophyTitleDetail")]
-        public string? TrophyTitleDetail { get; init; } // PS3/4/Vita only
-        [JsonPropertyName("trophyTitleIconUrl")]
-        public string TrophyTitleIconUrl { get; init; } = string.Empty;
-        [JsonPropertyName("trophyTitlePlatform")]
-        public string TrophyTitlePlatform { get; init; } = string.Empty; // Corrected typo from docs
-        [JsonPropertyName("definedTrophies")]
-        public DefinedTrophiesSummary DefinedTrophies { get; init; } = null!;
         [JsonPropertyName("trophyGroups")]
-        public List<TrophyGroupDefinition> TrophyGroups { get; init; } = new();
+        public List<TrophyGroup> TrophyGroups { get; init; } = new();
+        [JsonPropertyName("totalItemCount")]
+        public int TotalItemCount { get; init; }
     }
 
      public record EarnedTrophyGroup
@@ -242,23 +229,19 @@ namespace Sachya
         [JsonPropertyName("earnedTrophies")]
         public EarnedTrophiesSummary EarnedTrophies { get; init; } = null!;
         [JsonPropertyName("lastUpdatedDateTime")]
-        public DateTimeOffset? LastUpdatedDateTime { get; init; } // Can be null if progress is 0
+        public DateTimeOffset LastUpdatedDateTime { get; init; }
     }
 
     public record UserEarnedTrophyGroupsResponse
     {
         [JsonPropertyName("trophySetVersion")]
         public string TrophySetVersion { get; init; } = string.Empty;
-        [JsonPropertyName("hiddenFlag")]
-        public bool HiddenFlag { get; init; }
-        [JsonPropertyName("progress")]
-        public int Progress { get; init; }
-        [JsonPropertyName("earnedTrophies")]
-        public EarnedTrophiesSummary EarnedTrophies { get; init; } = null!;
         [JsonPropertyName("lastUpdatedDateTime")]
         public DateTimeOffset LastUpdatedDateTime { get; init; }
         [JsonPropertyName("trophyGroups")]
         public List<EarnedTrophyGroup> TrophyGroups { get; init; } = new();
+        [JsonPropertyName("totalItemCount")]
+        public int TotalItemCount { get; init; }
     }
 
     public record TitleTrophyTitleSummary
@@ -435,5 +418,89 @@ namespace Sachya
             StatusCode = statusCode;
             ResponseContent = responseContent;
         }
+    }
+
+    public record TrophyGroup
+    {
+        [JsonPropertyName("trophyGroupId")]
+        public string TrophyGroupId { get; init; } = string.Empty;
+        [JsonPropertyName("trophyGroupName")]
+        public string TrophyGroupName { get; init; } = string.Empty;
+        [JsonPropertyName("trophyGroupDetail")]
+        public string? TrophyGroupDetail { get; init; }
+        [JsonPropertyName("trophyGroupIconUrl")]
+        public string TrophyGroupIconUrl { get; init; } = string.Empty;
+        [JsonPropertyName("definedTrophies")]
+        public DefinedTrophiesSummary DefinedTrophies { get; init; } = null!;
+    }
+
+    public record TrophiesWithGameHelpResponse
+    {
+        [JsonPropertyName("trophySetVersion")]
+        public string TrophySetVersion { get; init; } = string.Empty;
+        [JsonPropertyName("hasTrophyGroups")]
+        public bool HasTrophyGroups { get; init; }
+        [JsonPropertyName("trophies")]
+        public List<TrophyWithGameHelp> Trophies { get; init; } = new();
+        [JsonPropertyName("totalItemCount")]
+        public int TotalItemCount { get; init; }
+        [JsonPropertyName("nextOffset")]
+        public int? NextOffset { get; init; }
+        [JsonPropertyName("previousOffset")]
+        public int? PreviousOffset { get; init; }
+    }
+
+    public record GameHelpForTrophiesResponse
+    {
+        [JsonPropertyName("gameHelp")]
+        public List<GameHelp> GameHelp { get; init; } = new();
+        [JsonPropertyName("totalItemCount")]
+        public int TotalItemCount { get; init; }
+    }
+
+    public record TrophyWithGameHelp
+    {
+        [JsonPropertyName("trophyId")]
+        public int TrophyId { get; init; }
+        [JsonPropertyName("trophyHidden")]
+        public bool TrophyHidden { get; init; }
+        [JsonPropertyName("trophyType")]
+        public string TrophyType { get; init; } = string.Empty;
+        [JsonPropertyName("trophyName")]
+        public string TrophyName { get; init; } = string.Empty;
+        [JsonPropertyName("trophyDetail")]
+        public string TrophyDetail { get; init; } = string.Empty;
+        [JsonPropertyName("trophyIconUrl")]
+        public string TrophyIconUrl { get; init; } = string.Empty;
+        [JsonPropertyName("trophyGroupId")]
+        public string TrophyGroupId { get; init; } = string.Empty;
+        [JsonPropertyName("gameHelp")]
+        public GameHelp? GameHelp { get; init; }
+    }
+
+    public record GameHelp
+    {
+        [JsonPropertyName("trophyId")]
+        public int TrophyId { get; init; }
+        [JsonPropertyName("gameHelpImages")]
+        public List<GameHelpImage> GameHelpImages { get; init; } = new();
+        [JsonPropertyName("gameHelpVideos")]
+        public List<GameHelpVideo> GameHelpVideos { get; init; } = new();
+    }
+
+    public record GameHelpImage
+    {
+        [JsonPropertyName("imageUrl")]
+        public string ImageUrl { get; init; } = string.Empty;
+        [JsonPropertyName("imageCaption")]
+        public string? ImageCaption { get; init; }
+    }
+
+    public record GameHelpVideo
+    {
+        [JsonPropertyName("videoUrl")]
+        public string VideoUrl { get; init; } = string.Empty;
+        [JsonPropertyName("videoCaption")]
+        public string? VideoCaption { get; init; }
     }
 }

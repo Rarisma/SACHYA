@@ -1,53 +1,9 @@
-// PlayStationTrophyClient.cs
-using System;
-using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Text;
-using System.Text.Json.Serialization;
 using System.Web;
 
 namespace Sachya.PSN;
-
-// Authentication response models
-public record PSNAuthResponse
-{
-    [JsonPropertyName("access_token")]
-    public string _accessToken { get; init; } = string.Empty;
-    
-    [JsonPropertyName("refresh_token")]
-    public string RefreshToken { get; init; } = string.Empty;
-    
-    [JsonPropertyName("expires_in")]
-    public int ExpiresIn { get; init; }
-    
-    [JsonPropertyName("token_type")]
-    public string TokenType { get; init; } = string.Empty;
-    
-    [JsonPropertyName("scope")]
-    public string Scope { get; init; } = string.Empty;
-}
-
-public record PSNSSOTokenResponse
-{
-    [JsonPropertyName("npsso")]
-    public string Npsso { get; init; } = string.Empty;
-}
-public class PSNApiException : Exception
-{
-    public HttpStatusCode StatusCode { get; }
-    public string? ResponseContent { get; }
-
-    public PSNApiException(string message, HttpStatusCode statusCode, string? responseContent = null) : base(message)
-    {
-        StatusCode = statusCode;
-        ResponseContent = responseContent;
-    }
-}
 
 public class PSNClient
 {

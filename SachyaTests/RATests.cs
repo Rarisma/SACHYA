@@ -1,5 +1,8 @@
 using dotenv.net;
 using Sachya;
+using Sachya.Clients;
+using Sachya.Definitions.RetroAchievements;
+
 namespace Tests
 {
     [TestFixture] // Marks the class as containing NUnit tests

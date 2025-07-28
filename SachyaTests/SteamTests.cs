@@ -1,5 +1,7 @@
 using dotenv.net;
 using Sachya;
+using Sachya.Clients;
+using Sachya.Definitions.Steam;
 
 namespace Tests;
 

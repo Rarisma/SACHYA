@@ -1,7 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-namespace Sachya;
+
+namespace Sachya.Misc;
 
 public class RaDateTimeConverter : JsonConverter<DateTime>
 {

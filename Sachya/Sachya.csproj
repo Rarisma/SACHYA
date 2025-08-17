@@ -14,8 +14,4 @@
       </Content>
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Definitions\Xbox\" />
-    </ItemGroup>
-
 </Project>

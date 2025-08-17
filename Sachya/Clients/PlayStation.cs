@@ -39,6 +39,76 @@ public class PSNClient
         client._httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
         return client;
     }
+
+    /// <summary>
+    /// Gets NPSSO token from username and password
+    /// </summary>
+    /// <param name="username">PlayStation account email/username</param>
+    /// <param name="password">PlayStation account password</param>
+    /// <returns>NPSSO token</returns>
+    public static async Task<string> GetNpssoFromCredentials(string username, string password)
+    {
+        using var handler = new HttpClientHandler
+        {
+            AllowAutoRedirect = true,
+            CookieContainer = new CookieContainer()
+        };
+        using var client = new HttpClient(handler);
+
+        // Step 1: Get login page and initial session
+        client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+        
+        var loginUrl = "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/authorize";
+        var loginParams = new Dictionary<string, string>
+        {
+            ["client_id"] = "71a7beb8-f21a-47d9-a604-2e71bee24fe0",
+            ["response_type"] = "code",
+            ["scope"] = "psn:sceapp",
+            ["redirect_uri"] = "https://auth.api.sonyentertainmentnetwork.com/mobile-success.html"
+        };
+
+        var queryString = string.Join("&", loginParams.Select(kvp => $"{kvp.Key}={Uri.EscapeDataString(kvp.Value)}"));
+        var fullLoginUrl = $"{loginUrl}?{queryString}";
+        
+        var loginPageResponse = await client.GetAsync(fullLoginUrl);
+        var loginPageContent = await loginPageResponse.Content.ReadAsStringAsync();
+        
+        // Step 2: Submit credentials
+        var authUrl = "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/signin";
+        var authPayload = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["authentication_type"] = "password",
+            ["username"] = username,
+            ["password"] = password,
+            ["client_id"] = "71a7beb8-f21a-47d9-a604-2e71bee24fe0"
+        });
+
+        var authResponse = await client.PostAsync(authUrl, authPayload);
+        
+        if (!authResponse.IsSuccessStatusCode)
+        {
+            var errorContent = await authResponse.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"Authentication failed. Please check your credentials. Status: {authResponse.StatusCode}");
+        }
+
+        // Step 3: Extract NPSSO token from cookies
+        var cookies = handler.CookieContainer.GetCookies(new Uri("https://auth.api.sonyentertainmentnetwork.com"));
+        var npssoCookie = cookies["npsso"];
+        
+        if (npssoCookie == null)
+        {
+            // Try alternative domain
+            cookies = handler.CookieContainer.GetCookies(new Uri("https://ca.account.sony.com"));
+            npssoCookie = cookies["npsso"];
+        }
+        
+        if (npssoCookie == null || string.IsNullOrEmpty(npssoCookie.Value))
+        {
+            throw new InvalidOperationException("Failed to obtain NPSSO token from authentication response.");
+        }
+
+        return npssoCookie.Value;
+    }
     
         
     /// <summary>

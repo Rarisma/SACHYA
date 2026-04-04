@@ -214,3 +214,22 @@ public class GlobalAchievement
     [JsonConverter(typeof(StringToFloatConverter))]
     public float percent { get; set; }
 }
+
+// IStoreService/GetAppList
+public class StoreAppListResult
+{
+    public StoreAppListResponse response { get; set; }
+}
+
+public class StoreAppListResponse
+{
+    public List<StoreAppEntry> apps { get; set; }
+    public uint? last_appid { get; set; }
+    public bool have_more_results { get; set; }
+}
+
+public class StoreAppEntry
+{
+    public uint appid { get; set; }
+    public string name { get; set; }
+}

@@ -132,4 +132,43 @@ public partial class SteamWebApiClient : IDisposable
         var url = $"ISteamUser/ResolveVanityURL/v1/?{keyParam}vanityurl={vanityUrl}";
         return await GetAsync<VanityUrlResponse>(url);
     }
+
+    /// <summary>
+    /// Gets a list of app IDs from IStoreService/GetAppList with type filtering.
+    /// Paginates automatically to collect all results.
+    /// </summary>
+    public async Task<List<uint>> GetAppListAsync(
+        bool includeGames = true,
+        bool includeDlc = false,
+        bool includeSoftware = false,
+        bool includeVideos = false,
+        bool includeHardware = false)
+    {
+        var allAppIds = new List<uint>();
+        uint? lastAppId = null;
+
+        while (true)
+        {
+            string keyParam = !string.IsNullOrWhiteSpace(_apiKey) ? $"key={_apiKey}&" : "";
+            var url = $"IStoreService/GetAppList/v1/?{keyParam}" +
+                      $"include_games={includeGames}&include_dlc={includeDlc}" +
+                      $"&include_software={includeSoftware}&include_videos={includeVideos}" +
+                      $"&include_hardware={includeHardware}&max_results=50000";
+
+            if (lastAppId.HasValue)
+                url += $"&last_appid={lastAppId.Value}";
+
+            var result = await GetAsync<StoreAppListResult>(url);
+
+            if (result.response?.apps != null)
+                allAppIds.AddRange(result.response.apps.Select(a => a.appid));
+
+            if (result.response?.have_more_results != true)
+                break;
+
+            lastAppId = result.response.last_appid;
+        }
+
+        return allAppIds;
+    }
 }

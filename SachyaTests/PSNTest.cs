@@ -73,7 +73,7 @@ public class PlayStationTrophyClientTests_Integration
         Assert.IsNotNull(result.TrophyTitles);
         // Assuming the test account has at least one game with trophies
         Assert.Greater(result.TotalItemCount, -1); // Allow 0 if account is new/empty
-        Console.WriteLine($"Found {result.TotalItemCount} trophy titles for 'me'. First: {result.TrophyTitles.FirstOrDefault()?.TrophyTitleName ?? "N/A"}");
+        TestContext.WriteLine($"Found {result.TotalItemCount} trophy titles for 'me'. First: {result.TrophyTitles.FirstOrDefault()?.TrophyTitleName ?? "N/A"}");
     }
 
     [Test]
@@ -95,7 +95,7 @@ public class PlayStationTrophyClientTests_Integration
         if(result.TotalItemCount > limit + offset) Assert.IsNotNull(result.NextOffset);
         if(offset > 0) Assert.IsNotNull(result.PreviousOffset);
 
-        Console.WriteLine($"Pagination test: Got {result.TrophyTitles.Count} titles. NextOffset: {result.NextOffset}, PrevOffset: {result.PreviousOffset}");
+        TestContext.WriteLine($"Pagination test: Got {result.TrophyTitles.Count} titles. NextOffset: {result.NextOffset}, PrevOffset: {result.PreviousOffset}");
     }
 
 
@@ -112,7 +112,7 @@ public class PlayStationTrophyClientTests_Integration
         Assert.IsNotNull(result.Trophies);
         Assert.Greater(result.TotalItemCount, 0); // Expecting trophies for this game
         Assert.IsTrue(result.Trophies.Any(t => t.TrophyType.Equals("platinum", StringComparison.OrdinalIgnoreCase)), "Should contain a platinum trophy definition.");
-        Console.WriteLine($"Found {result.TotalItemCount} trophy definitions for Gravity Rush Remastered PS4.");
+        TestContext.WriteLine($"Found {result.TotalItemCount} trophy definitions for Gravity Rush Remastered PS4.");
     }
 
     [Test]
@@ -129,7 +129,7 @@ public class PlayStationTrophyClientTests_Integration
         Assert.IsTrue(result.Trophies.Any(t => t.TrophyType.Equals("platinum", StringComparison.OrdinalIgnoreCase)), "Should contain a platinum trophy definition.");
         // Check for PS5 specific fields (might be null if no trophy uses them)
         Assert.IsTrue(result.Trophies.Any(t => t.TrophyProgressTargetValue != null || t.TrophyRewardName != null), "Astro's might have progress/reward trophies.");
-        Console.WriteLine($"Found {result.TotalItemCount} trophy definitions for ASTRO's PLAYROOM PS5.");
+        TestContext.WriteLine($"Found {result.TotalItemCount} trophy definitions for ASTRO's PLAYROOM PS5.");
     }
 
     [Test]
@@ -156,8 +156,8 @@ public class PlayStationTrophyClientTests_Integration
         Assert.IsNotNull(platinumEn);
         Assert.IsNotNull(platinumDe);
         Assert.AreNotEqual(platinumEn!.TrophyName, platinumDe!.TrophyName, "Platinum trophy name should differ by language.");
-        Console.WriteLine($"EN Platinum: {platinumEn.TrophyName}");
-        Console.WriteLine($"DE Platinum: {platinumDe.TrophyName}");
+        TestContext.WriteLine($"EN Platinum: {platinumEn.TrophyName}");
+        TestContext.WriteLine($"DE Platinum: {platinumDe.TrophyName}");
     }
 
 
@@ -187,7 +187,7 @@ public class PlayStationTrophyClientTests_Integration
         // Check if *any* trophies are marked earned or not, depending on account state
         bool hasEarned = result.Trophies.Any(t => t.Earned);
         bool hasUnearned = result.Trophies.Any(t => !t.Earned);
-        Console.WriteLine($"Gravity Rush Earned Status: Found {result.Trophies.Count} trophies. Has Earned: {hasEarned}. Has Unearned: {hasUnearned}.");
+        TestContext.WriteLine($"Gravity Rush Earned Status: Found {result.Trophies.Count} trophies. Has Earned: {hasEarned}. Has Unearned: {hasUnearned}.");
         Assert.IsTrue(hasEarned || hasUnearned, "Should have either earned or unearned trophies if game was played.");
     }
 
@@ -202,8 +202,8 @@ public class PlayStationTrophyClientTests_Integration
         Assert.Greater(result.TrophyLevel, 0); // Assuming account has played games
         Assert.Greater(result.Tier, 0);
         Assert.IsNotNull(result.EarnedTrophies);
-        Console.WriteLine($"User 'me': Level {result.TrophyLevel}, Tier {result.Tier}, Points {result.TrophyPoint}");
-        Console.WriteLine($" -> Bronze: {result.EarnedTrophies.Bronze}, Silver: {result.EarnedTrophies.Silver}, Gold: {result.EarnedTrophies.Gold}, Platinum: {result.EarnedTrophies.Platinum}");
+        TestContext.WriteLine($"User 'me': Level {result.TrophyLevel}, Tier {result.Tier}, Points {result.TrophyPoint}");
+        TestContext.WriteLine($" -> Bronze: {result.EarnedTrophies.Bronze}, Silver: {result.EarnedTrophies.Silver}, Gold: {result.EarnedTrophies.Gold}, Platinum: {result.EarnedTrophies.Platinum}");
     }
 
     [Test]
@@ -218,7 +218,7 @@ public class PlayStationTrophyClientTests_Integration
         Assert.IsNotNull(result.TrophyGroups);
         Assert.GreaterOrEqual(result.TrophyGroups.Count, 1); // Should have at least 'default' group
         Assert.IsTrue(result.TrophyGroups.Any(g => g.TrophyGroupId == "default"));
-        Console.WriteLine($"Found {result.TrophyGroups.Count} trophy groups for Gravity Rush Remastered.");
+        TestContext.WriteLine($"Found {result.TrophyGroups.Count} trophy groups for Gravity Rush Remastered.");
     }
 
     [Test]
@@ -244,10 +244,10 @@ public class PlayStationTrophyClientTests_Integration
         Assert.GreaterOrEqual(result.TrophyGroups.Count, 1); // Expect at least default group if played
         // UserEarnedTrophyGroupsResponse doesn't have overall Progress - check individual group progress instead
         Assert.IsTrue(result.TrophyGroups.All(g => g.Progress >= 0 && g.Progress <= 100)); // Each group progress should be 0-100%
-        Console.WriteLine($"Gravity Rush Earned Groups: Found {result.TrophyGroups.Count} groups.");
+        TestContext.WriteLine($"Gravity Rush Earned Groups: Found {result.TrophyGroups.Count} groups.");
         foreach(var group in result.TrophyGroups)
         {
-            Console.WriteLine($" -> Group: {group.TrophyGroupId}, Progress: {group.Progress}%");
+            TestContext.WriteLine($" -> Group: {group.TrophyGroupId}, Progress: {group.Progress}%");
         }
     }
 
@@ -291,7 +291,7 @@ public class PlayStationTrophyClientTests_Integration
             var trophyInfo = titleSummary.TrophyTitles.First();
             Assert.AreEqual(GravityRushNpCommunicationId, trophyInfo.NpCommunicationId);
             Assert.GreaterOrEqual(trophyInfo.Progress, 0);
-            Console.WriteLine($"Title Summary for {titleIds}: Progress {trophyInfo.Progress}%");
+            TestContext.WriteLine($"Title Summary for {titleIds}: Progress {trophyInfo.Progress}%");
         }
     }
 
@@ -334,12 +334,12 @@ public class PlayStationTrophyClientTests_Integration
         {
             Assert.IsNotNull(trophyInfo.NotEarnedTrophyIds, "notEarnedTrophyIds should be present when requested and progress < 100%");
             Assert.Greater(trophyInfo.NotEarnedTrophyIds!.Count, 0, "Should have unearned trophy IDs if progress < 100%");
-            Console.WriteLine($"Found {trophyInfo.NotEarnedTrophyIds.Count} unearned trophy IDs for {titleIds}.");
+            TestContext.WriteLine($"Found {trophyInfo.NotEarnedTrophyIds.Count} unearned trophy IDs for {titleIds}.");
         }
         else
         {
             // If progress is 100%, the list might be empty or null, which is valid.
-            Console.WriteLine($"Progress is 100% for {titleIds}. notEarnedTrophyIds may be empty/null.");
+            TestContext.WriteLine($"Progress is 100% for {titleIds}. notEarnedTrophyIds may be empty/null.");
             Assert.IsTrue(trophyInfo.NotEarnedTrophyIds == null || !trophyInfo.NotEarnedTrophyIds.Any());
         }
     }
@@ -370,7 +370,7 @@ public class PlayStationTrophyClientTests_Integration
         Assert.IsNotNull(result.Trophies);
         // Astro's Playroom has Game Help
         Assert.Greater(result.Trophies.Count, 0, "Astro's Playroom should have trophies with Game Help available.");
-        Console.WriteLine($"Found {result.Trophies.Count} trophies with Game Help for Astro's Playroom.");
+        TestContext.WriteLine($"Found {result.Trophies.Count} trophies with Game Help for Astro's Playroom.");
         // Verify structure of one entry
         var firstHelp = result.Trophies.First();
         Assert.IsNotEmpty(firstHelp.TrophyName);
@@ -413,7 +413,7 @@ public class PlayStationTrophyClientTests_Integration
         var gameHelp = result.GameHelp.First();
         Assert.AreEqual(trophyWithHelp.TrophyId, gameHelp.TrophyId);
         Assert.IsTrue(gameHelp.GameHelpImages.Count > 0 || gameHelp.GameHelpVideos.Count > 0, "Should have either images or videos for game help");
-        Console.WriteLine($"Game Help for Astro's Trophy {gameHelp.TrophyId}: Images={gameHelp.GameHelpImages.Count}, Videos={gameHelp.GameHelpVideos.Count}");
+        TestContext.WriteLine($"Game Help for Astro's Trophy {gameHelp.TrophyId}: Images={gameHelp.GameHelpImages.Count}, Videos={gameHelp.GameHelpVideos.Count}");
     }
 
     // --- Optional: Test for non-"me" account ---
@@ -447,6 +447,6 @@ public class PlayStationTrophyClientTests_Integration
         Assert.IsNotNull(result);
         Assert.IsNotNull(result.TrophyTitles);
         Assert.Greater(result.TotalItemCount, -1);
-        Console.WriteLine($"Found {result.TotalItemCount} trophy titles for account {_testNumericAccountId}.");
+        TestContext.WriteLine($"Found {result.TotalItemCount} trophy titles for account {_testNumericAccountId}.");
     }
 }

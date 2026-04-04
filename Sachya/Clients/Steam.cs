@@ -2,7 +2,7 @@
 using Sachya.Definitions.Steam;
 
 namespace Sachya.Clients;
-public class SteamWebApiClient
+public partial class SteamWebApiClient : IDisposable
 {
     private readonly HttpClient _client;
     private readonly string _apiKey;
@@ -19,61 +19,29 @@ public class SteamWebApiClient
         _apiKey = apiKey;
     }
 
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _client.Dispose();
+        }
+    }
+
     private async Task<T> GetAsync<T>(string url, string suffix = "&format=json")
     {
-        int maxRetries = 3;
-        int retryCount = 0;
-        TimeSpan delay = TimeSpan.FromSeconds(1);
-        TimeSpan maxDelay = TimeSpan.FromSeconds(30);
-        Random jitter = new Random();
+        var response = await HttpRetryHandler.SendWithRetryAsync(
+            _client,
+            () => new HttpRequestMessage(HttpMethod.Get, url + suffix));
 
-        while (true)
-        {
-            try
-            {
-                using HttpResponseMessage response = await _client.GetAsync(url + suffix).ConfigureAwait(false);
-                
-                // If we get a rate limit or server error, retry with backoff
-                if ((int)response.StatusCode == 429 || (int)response.StatusCode >= 500)
-                {
-                    if (retryCount >= maxRetries)
-                        response.EnsureSuccessStatusCode(); // Will throw if we're out of retries
-                    
-                    retryCount++;
-                    await Task.Delay(delay).ConfigureAwait(false);
-                    
-                    // Exponential backoff with jitter
-                    delay = TimeSpan.FromMilliseconds(
-                        Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2) * 
-                        (0.8 + jitter.NextDouble() * 0.4));
-                    
-                    continue;
-                }
-                
-                response.EnsureSuccessStatusCode();
-                string json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<T>(json);
-            }
-            catch (HttpRequestException ex) when (retryCount < maxRetries && 
-                                                (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests || 
-                                                 (ex.StatusCode >= System.Net.HttpStatusCode.InternalServerError)))
-            {
-                retryCount++;
-                await Task.Delay(delay).ConfigureAwait(false);
-                
-                // Exponential backoff with jitter
-                delay = TimeSpan.FromMilliseconds(
-                    Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2) * 
-                    (0.8 + jitter.NextDouble() * 0.4));
-            }
-            catch (Exception) when (retryCount < maxRetries)
-            {
-                // For other exceptions that might be transient
-                retryCount++;
-                await Task.Delay(delay).ConfigureAwait(false);
-                delay = TimeSpan.FromMilliseconds(Math.Min(maxDelay.TotalMilliseconds, delay.TotalMilliseconds * 2));
-            }
-        }
+        response.EnsureSuccessStatusCode();
+        string json = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<T>(json);
     }
     
     public Task<GameSchemaResult> GetSchemaForGameAsync(int appid)

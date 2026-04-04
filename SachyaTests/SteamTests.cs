@@ -21,10 +21,12 @@ public class SteamTests
     }
 
     [SetUp]
-    public void Setup()
+    public async Task Setup()
     {
         // Instantiate the client. Some endpoints work without an API key.
         _client = new SteamWebApiClient(_apiKey);
+        // Delay every test 1s to prevent rate limits
+        await Task.Delay(1000);
     }
 
     [Test]
@@ -110,12 +112,6 @@ public class SteamTests
         }
     }
 
-    [SetUp]
-    public async Task BeforeEach()
-    {
-        //delay every test 1s to prevent rate limits
-        await Task.Delay(1000);
-    }
 
     
     [Test]

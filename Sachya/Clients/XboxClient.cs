@@ -1,12 +1,13 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Sachya.Definitions.Xbox;
 
 namespace Sachya.Clients;
 
 /// <summary>
-/// Main Xbox Live API client that handles authentication and API calls
-/// This replaces the OpenXblApiClient with direct Xbox Live API access
+/// Main Xbox Live API client that handles authentication and API calls.
 /// </summary>
-public class XboxApiClient : IDisposable
+public partial class XboxApiClient : IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly XboxAuthService _authService;
@@ -14,18 +15,12 @@ public class XboxApiClient : IDisposable
     private bool _isAuthenticated;
     private Func<Task<string?>>? _tokenRefreshCallback;
 
-    /// <summary>
-    /// Creates a new Xbox API client with Microsoft OAuth token
-    /// </summary>
-    /// <param name="microsoftAccessToken">OAuth token obtained from Microsoft login with Xbox Live scopes</param>
-    /// <param name="httpClient">Optional HttpClient instance</param>
-    public XboxApiClient(string microsoftAccessToken, HttpClient? httpClient = null)
+    public XboxApiClient(string microsoftAccessToken, HttpClient? httpClient = null, ILoggerFactory? loggerFactory = null)
     {
         _httpClient = httpClient ?? new HttpClient();
-        _authService = new XboxAuthService(_httpClient);
-        _apiClient = new XboxLiveApiClient(_authService, _httpClient);
-        
-        // Store token for authentication
+        loggerFactory ??= NullLoggerFactory.Instance;
+        _authService = new XboxAuthService(_httpClient, loggerFactory.CreateLogger<XboxAuthService>());
+        _apiClient = new XboxLiveApiClient(_authService, _httpClient, loggerFactory.CreateLogger<XboxLiveApiClient>());
         MicrosoftAccessToken = microsoftAccessToken;
     }
 

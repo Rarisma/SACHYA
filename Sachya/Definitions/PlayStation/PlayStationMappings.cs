@@ -526,14 +526,3 @@ public record PSNSSOTokenResponse
     [JsonPropertyName("npsso")]
     public string Npsso { get; init; } = string.Empty;
 }
-public class PSNApiException : Exception
-{
-    public HttpStatusCode StatusCode { get; }
-    public string? ResponseContent { get; }
-
-    public PSNApiException(string message, HttpStatusCode statusCode, string? responseContent = null) : base(message)
-    {
-        StatusCode = statusCode;
-        ResponseContent = responseContent;
-    }
-}

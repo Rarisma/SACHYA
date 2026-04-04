@@ -37,7 +37,7 @@ public class PSNAuthenticationTests
         // Assert
         Assert.IsNotNull(npssoToken);
         Assert.IsNotEmpty(npssoToken);
-        Console.WriteLine($"Successfully obtained NPSSO token (length: {npssoToken.Length})");
+        TestContext.WriteLine($"Successfully obtained NPSSO token (length: {npssoToken.Length})");
     }
     
     [Test]
@@ -69,7 +69,7 @@ public class PSNAuthenticationTests
         var trophySummary = await client.GetUserTrophySummaryAsync("me");
         Assert.IsNotNull(trophySummary);
         Assert.GreaterOrEqual(trophySummary.TrophyLevel, 0);
-        Console.WriteLine($"Successfully authenticated. Trophy Level: {trophySummary.TrophyLevel}");
+        TestContext.WriteLine($"Successfully authenticated. Trophy Level: {trophySummary.TrophyLevel}");
     }
     
     [Test]
@@ -88,11 +88,11 @@ public class PSNAuthenticationTests
         Assert.IsNotNull(trophyTitles);
         Assert.IsNotNull(trophyTitles.TrophyTitles);
         
-        Console.WriteLine($"Found {trophyTitles.TotalItemCount} trophy titles");
+        TestContext.WriteLine($"Found {trophyTitles.TotalItemCount} trophy titles");
         if (trophyTitles.TrophyTitles.Count > 0)
         {
             var firstTitle = trophyTitles.TrophyTitles[0];
-            Console.WriteLine($"First title: {firstTitle.TrophyTitleName} (Platform: {firstTitle.TrophyTitlePlatform})");
+            TestContext.WriteLine($"First title: {firstTitle.TrophyTitleName} (Platform: {firstTitle.TrophyTitlePlatform})");
         }
     }
 }

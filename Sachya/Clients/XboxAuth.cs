@@ -2,29 +2,32 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Sachya.Clients;
 
 public class XboxAuthService
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<XboxAuthService> _logger;
     private string? _userHash;
     private string? _xstsToken;
     private string? _xuid;
     private DateTime _tokenExpiry;
-    
-    // Xbox Live endpoints
+
     private const string UserAuthUrl = "https://user.auth.xboxlive.com/user/authenticate";
     private const string XstsAuthUrl = "https://xsts.auth.xboxlive.com/xsts/authorize";
-    
+
     public string? Xuid => _xuid;
     public string? UserHash => _userHash;
     public string? XstsToken => _xstsToken;
     public bool IsAuthenticated => !string.IsNullOrEmpty(_xstsToken) && DateTime.UtcNow < _tokenExpiry;
 
-    public XboxAuthService(HttpClient? httpClient = null)
+    public XboxAuthService(HttpClient? httpClient = null, ILogger<XboxAuthService>? logger = null)
     {
         _httpClient = httpClient ?? new HttpClient();
+        _logger = logger ?? NullLogger<XboxAuthService>.Instance;
     }
 
     /// <summary>
@@ -62,7 +65,7 @@ public class XboxAuthService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Xbox authentication failed: {ex.Message}");
+            _logger.LogWarning(ex, "Xbox authentication failed");
             return false;
         }
     }

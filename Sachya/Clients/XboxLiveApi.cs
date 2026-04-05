@@ -70,16 +70,49 @@ public class XboxLiveApiClient
         if (string.IsNullOrEmpty(_authService.Xuid))
             throw new InvalidOperationException("Not authenticated - XUID is missing");
 
-        bool isXbox360 = IsXbox360Title(titleId);
+        // Try v2 with orderBy (modern Xbox One/Series titles)
+        var v2Result = await TryGetAchievementsAsync(titleId, maxItems, contractVersion: "2",
+            extraParams: "&unearned=true&orderBy=unlockTime");
+        if (v2Result.Achievements.Count > 0)
+        {
+            _logger.LogDebug("Found {Count} achievements for title {TitleId} via v2", v2Result.Achievements.Count, titleId);
+            return v2Result;
+        }
 
-        var url = isXbox360
-            ? $"{AchievementsBaseUrl}/users/xuid({_authService.Xuid})/achievements?titleId={titleId}&maxItems={maxItems}&unlockedOnly=false"
-            : $"{AchievementsBaseUrl}/users/xuid({_authService.Xuid})/achievements?titleId={titleId}&maxItems={maxItems}&unearned=true&orderBy=unlockTime";
+        // Try v2 without orderBy — some 360 titles work with v2 but choke on orderBy=unlockTime
+        var v2SimpleResult = await TryGetAchievementsAsync(titleId, maxItems, contractVersion: "2",
+            extraParams: "&unearned=true");
+        if (v2SimpleResult.Achievements.Count > 0)
+        {
+            _logger.LogDebug("Found {Count} achievements for title {TitleId} via v2 (no orderBy)", v2SimpleResult.Achievements.Count, titleId);
+            return v2SimpleResult;
+        }
+
+        // Fallback to v1 (Xbox 360) — returns only unlocked achievements
+        _logger.LogDebug("v2 returned empty for title {TitleId}, trying v1 (Xbox 360) contract", titleId);
+        var v1Result = await TryGetAchievementsV1Async(titleId, maxItems);
+        if (v1Result.Achievements.Count > 0)
+        {
+            _logger.LogDebug("Found {Count} achievements for title {TitleId} via v1 (unlocked only)", v1Result.Achievements.Count, titleId);
+            return v1Result;
+        }
+
+        _logger.LogDebug("No achievements found for title {TitleId} from any contract version", titleId);
+        return new XboxAchievementsResponse { Achievements = new List<XboxAchievement>() };
+    }
+
+    /// <summary>
+    /// Tries to fetch achievements using v2 contract format (XboxAchievement model).
+    /// </summary>
+    private async Task<XboxAchievementsResponse> TryGetAchievementsAsync(
+        string titleId, int maxItems, string contractVersion, string extraParams = "")
+    {
+        var url = $"{AchievementsBaseUrl}/users/xuid({_authService.Xuid})/achievements?titleId={titleId}&maxItems={maxItems}{extraParams}";
 
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Clear();
         request.Headers.Add("Authorization", $"XBL3.0 x={_authService.UserHash};{_authService.XstsToken}");
-        request.Headers.Add("x-xbl-contract-version", isXbox360 ? "1" : "2");
+        request.Headers.Add("x-xbl-contract-version", contractVersion);
         request.Headers.Add("Accept-Language", "en-US");
         request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -87,25 +120,93 @@ public class XboxLiveApiClient
 
         if (!response.IsSuccessStatusCode)
         {
-            var content = await response.Content.ReadAsStringAsync();
-            _logger.LogWarning("Failed to get achievements for title {TitleId}. Status: {StatusCode}, URL: {Url}", titleId, response.StatusCode, url);
-            throw new HttpRequestException($"Failed to get achievements for title {titleId}: {response.StatusCode} - {content}");
+            _logger.LogDebug("v{Version} achievements request failed for title {TitleId}: {StatusCode}",
+                contractVersion, titleId, response.StatusCode);
+            return new XboxAchievementsResponse { Achievements = new List<XboxAchievement>() };
         }
 
         var json = await response.Content.ReadAsStringAsync();
-        var result = JsonSerializer.Deserialize<XboxAchievementsResponse>(json, SachyaJsonOptions.Default)
-               ?? new XboxAchievementsResponse { Achievements = new List<XboxAchievement>() };
-
-        if (result.Achievements == null || result.Achievements.Count == 0)
+        try
         {
-            _logger.LogDebug("No achievements found for title {TitleId} (response length: {Length})", titleId, json.Length);
+            return JsonSerializer.Deserialize<XboxAchievementsResponse>(json, SachyaJsonOptions.Default)
+                   ?? new XboxAchievementsResponse { Achievements = new List<XboxAchievement>() };
         }
-        else
+        catch (JsonException ex)
         {
-            _logger.LogDebug("Found {Count} achievements for title {TitleId}", result.Achievements.Count, titleId);
+            // v2 model doesn't fit this response (likely a 360 title returning v1-style JSON)
+            _logger.LogDebug(ex, "v{Version} deserialization failed for title {TitleId}, likely wrong format",
+                contractVersion, titleId);
+            return new XboxAchievementsResponse { Achievements = new List<XboxAchievement>() };
+        }
+    }
+
+    private async Task<XboxAchievementsResponse> TryGetAchievementsV1Async(string titleId, int maxItems)
+    {
+        var url = $"{AchievementsBaseUrl}/users/xuid({_authService.Xuid})/achievements?titleId={titleId}&maxItems={maxItems}&unlockedOnly=false";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Clear();
+        request.Headers.Add("Authorization", $"XBL3.0 x={_authService.UserHash};{_authService.XstsToken}");
+        request.Headers.Add("x-xbl-contract-version", "1");
+        request.Headers.Add("Accept-Language", "en-US");
+        request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+        var response = await _httpClient.SendAsync(request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogDebug("v1 achievements request failed for title {TitleId}: {StatusCode}", titleId, response.StatusCode);
+            return new XboxAchievementsResponse { Achievements = new List<XboxAchievement>() };
         }
 
-        return result;
+        var json = await response.Content.ReadAsStringAsync();
+
+        // v1 response has different field types (int id, bool unlocked, etc.)
+        // Deserialize with v1 model and convert to v2 format
+        try
+        {
+            var v1Response = JsonSerializer.Deserialize<Xbox360AchievementsResponse>(json, SachyaJsonOptions.Default)
+                             ?? new Xbox360AchievementsResponse();
+
+            if (v1Response.Achievements.Count == 0)
+                return new XboxAchievementsResponse { Achievements = new List<XboxAchievement>() };
+
+            // Convert v1 achievements to v2 format
+            var converted = v1Response.Achievements.Select(a => new XboxAchievement
+            {
+                Id = a.Id.ToString(),
+                Name = a.Name,
+                Description = a.Description,
+                LockedDescription = a.LockedDescription,
+                IsSecret = a.IsSecret,
+                ProgressState = a.Unlocked ? "Achieved" : "NotStarted",
+                Progression = a.TimeUnlocked.HasValue && a.Unlocked
+                    ? new XboxProgression { TimeUnlocked = a.TimeUnlocked }
+                    : null,
+                Rewards = new List<XboxReward>
+                {
+                    new() { Type = "Gamerscore", Value = a.Gamerscore.ToString() }
+                },
+                // Xbox 360 achievement images use hex titleId and hex imageId
+                MediaAssets = a.ImageId > 0 && long.TryParse(titleId, out var titleIdNum)
+                    ? new List<XboxMediaAsset>
+                    {
+                        new()
+                        {
+                            Type = "Icon",
+                            Url = $"http://image.xboxlive.com/global/t.{titleIdNum:X8}/ach/0/{a.ImageId:X}"
+                        }
+                    }
+                    : null
+            }).ToList();
+
+            return new XboxAchievementsResponse { Achievements = converted };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to deserialize v1 achievements for title {TitleId}", titleId);
+            return new XboxAchievementsResponse { Achievements = new List<XboxAchievement>() };
+        }
     }
 
     public async Task<XboxUserStatsResponse> GetUserStatsAsync(string scid)
@@ -126,33 +227,4 @@ public class XboxLiveApiClient
                ?? new XboxUserStatsResponse { Groups = new List<XboxStatGroup>() };
     }
 
-    private bool IsXbox360Title(string titleId)
-    {
-        if (string.IsNullOrEmpty(titleId))
-            return false;
-
-        bool isHex = titleId.Length == 8 &&
-                     titleId.All(c => (c >= '0' && c <= '9') ||
-                                     (c >= 'A' && c <= 'F') ||
-                                     (c >= 'a' && c <= 'f'));
-
-        if (isHex)
-        {
-            _logger.LogDebug("Title {TitleId} identified as Xbox 360 (hex format)", titleId);
-            return true;
-        }
-
-        if (long.TryParse(titleId, out long numericId))
-        {
-            bool is360Range = numericId < 1000000000;
-            if (is360Range)
-            {
-                _logger.LogDebug("Title {TitleId} identified as Xbox 360 (numeric range)", titleId);
-                return true;
-            }
-        }
-
-        _logger.LogDebug("Title {TitleId} identified as Xbox One/Series", titleId);
-        return false;
-    }
 }

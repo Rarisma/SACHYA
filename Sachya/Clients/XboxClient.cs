@@ -26,6 +26,7 @@ public partial class XboxApiClient : IDisposable
 
     public string MicrosoftAccessToken { get; private set; }
     public string? Xuid => _authService.Xuid;
+    public string? Gamertag => _authService.Gamertag;
     public bool IsAuthenticated => _isAuthenticated && _authService.IsAuthenticated;
     
     /// <summary>
@@ -309,12 +310,13 @@ public partial class XboxApiClient : IDisposable
             {
                 Id = a.Id,
                 Name = a.Name,
-                Description = a.IsSecret && a.ProgressState != "Achieved" 
-                    ? a.LockedDescription ?? "Secret achievement" 
+                Description = a.IsSecret && a.ProgressState != "Achieved"
+                    ? a.LockedDescription ?? "Secret achievement"
                     : a.Description ?? string.Empty,
-                Icon = a.ImageLocked?.Url ?? a.ImageUnlocked?.Url ?? string.Empty,
+                Icon = ResolveAchievementIcon(a),
                 Gamerscore = a.Rewards?.FirstOrDefault(r => r.Type == "Gamerscore")?.Value ?? "0",
-                DisplayBeforeEarned = (!a.IsSecret).ToString()
+                DisplayBeforeEarned = (!a.IsSecret).ToString(),
+                ProgressState = a.ProgressState
             }).ToList(),
             PagingInfo = achievements.PagingInfo != null ? new PagingInfo
             {
@@ -347,11 +349,13 @@ public partial class XboxApiClient : IDisposable
                 Description = a.Description,
                 LockedDescription = a.LockedDescription,
                 UnlockedDescription = a.UnlockedDescription,
-                Icon = a.ImageLocked?.Url ?? a.ImageUnlocked?.Url ?? string.Empty,
+                Icon = ResolveAchievementIcon(a),
                 IsSecret = a.IsSecret,
                 Gamerscore = a.Rewards?.FirstOrDefault(r => r.Type == "Gamerscore")?.Value ?? "0",
                 IsRevoked = false,
                 Rarity = a.Rarity?.CurrentCategory,
+                RarityPercentage = a.Rarity?.CurrentPercentage,
+                ProgressState = a.ProgressState,
                 Progressions = a.Progression != null ? new List<Progression>
                 {
                     new Progression
@@ -375,6 +379,30 @@ public partial class XboxApiClient : IDisposable
     }
 
     #endregion
+
+    /// <summary>
+    /// Resolves the best available icon URL for an achievement.
+    /// Modern Xbox (v2) uses mediaAssets, Xbox 360 (v1) uses imageUnlocked/imageLocked.
+    /// </summary>
+    private static string ResolveAchievementIcon(XboxAchievement a)
+    {
+        // Try mediaAssets first (modern Xbox One/Series achievements)
+        var mediaIcon = a.MediaAssets?.FirstOrDefault(m =>
+            string.Equals(m.Type, "Icon", StringComparison.OrdinalIgnoreCase))?.Url;
+        if (!string.IsNullOrEmpty(mediaIcon))
+            return mediaIcon;
+
+        // Any media asset URL as fallback
+        var anyMedia = a.MediaAssets?.FirstOrDefault()?.Url;
+        if (!string.IsNullOrEmpty(anyMedia))
+            return anyMedia;
+
+        // Fall back to imageUnlocked/imageLocked (Xbox 360 format)
+        if (a.ProgressState == "Achieved")
+            return a.ImageUnlocked?.Url ?? a.ImageLocked?.Url ?? string.Empty;
+
+        return a.ImageLocked?.Url ?? a.ImageUnlocked?.Url ?? string.Empty;
+    }
 
     #region Stub Methods for Compatibility
 

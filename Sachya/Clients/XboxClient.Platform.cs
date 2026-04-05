@@ -35,7 +35,7 @@ public partial class XboxApiClient : IPlatformClient
             Description = a.ProgressState == "Achieved"
                 ? a.Description ?? a.UnlockedDescription
                 : a.LockedDescription ?? a.Description,
-            IconUrl = a.ImageUnlocked?.Url ?? a.ImageLocked?.Url,
+            IconUrl = ResolveAchievementIcon(a),
             IsEarned = a.ProgressState == "Achieved",
             IsHidden = a.IsSecret,
             EarnedAt = a.Progression?.TimeUnlocked,

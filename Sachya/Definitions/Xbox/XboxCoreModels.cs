@@ -299,6 +299,8 @@ public class Achievement
     public string Deeplink { get; set; }
     public bool IsRetail { get; set; }
     public string Rarity { get; set; }
+    public double? RarityPercentage { get; set; }
+    public string? ProgressState { get; set; }
     public List<Progression> Progressions { get; set; }
 }
 
@@ -362,6 +364,7 @@ public class TitleAchievement
     public string Icon { get; set; }
     public string Gamerscore { get; set; }
     public string DisplayBeforeEarned { get; set; }
+    public string? ProgressState { get; set; }
 }
 
 public class PlayerSummaryResponse

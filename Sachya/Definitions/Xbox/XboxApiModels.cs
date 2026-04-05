@@ -124,6 +124,9 @@ public class XboxAchievement
     [JsonPropertyName("imageLocked")]
     public XboxMediaAsset? ImageLocked { get; set; }
 
+    [JsonPropertyName("mediaAssets")]
+    public List<XboxMediaAsset>? MediaAssets { get; set; }
+
     [JsonPropertyName("isSecret")]
     public bool IsSecret { get; set; }
 
@@ -142,6 +145,12 @@ public class XboxAchievement
 
 public class XboxMediaAsset
 {
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
+
     [JsonPropertyName("url")]
     public string Url { get; set; } = string.Empty;
 
@@ -204,6 +213,63 @@ public class XboxPagingInfo
 
     [JsonPropertyName("totalRecords")]
     public int TotalRecords { get; set; }
+}
+
+/// <summary>
+/// Xbox 360 v1 API achievement format — different field names and types from v2
+/// </summary>
+public class Xbox360AchievementsResponse
+{
+    [JsonPropertyName("achievements")]
+    public List<Xbox360Achievement> Achievements { get; set; } = new();
+}
+
+public class Xbox360Achievement
+{
+    [JsonPropertyName("id")]
+    public int Id { get; set; }
+
+    [JsonPropertyName("titleId")]
+    public int TitleId { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("sequence")]
+    public int Sequence { get; set; }
+
+    [JsonPropertyName("flags")]
+    public int Flags { get; set; }
+
+    [JsonPropertyName("unlockedOnline")]
+    public bool UnlockedOnline { get; set; }
+
+    [JsonPropertyName("unlocked")]
+    public bool Unlocked { get; set; }
+
+    [JsonPropertyName("isSecret")]
+    public bool IsSecret { get; set; }
+
+    [JsonPropertyName("platform")]
+    public int Platform { get; set; }
+
+    [JsonPropertyName("gamerscore")]
+    public int Gamerscore { get; set; }
+
+    [JsonPropertyName("imageId")]
+    public int ImageId { get; set; }
+
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    [JsonPropertyName("lockedDescription")]
+    public string? LockedDescription { get; set; }
+
+    [JsonPropertyName("type")]
+    public int Type { get; set; }
+
+    [JsonPropertyName("timeUnlocked")]
+    public DateTime? TimeUnlocked { get; set; }
 }
 
 public class XboxUserStatsResponse

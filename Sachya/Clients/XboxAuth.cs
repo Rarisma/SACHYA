@@ -14,6 +14,7 @@ public class XboxAuthService
     private string? _userHash;
     private string? _xstsToken;
     private string? _xuid;
+    private string? _gamertag;
     private DateTime _tokenExpiry;
 
     private const string UserAuthUrl = "https://user.auth.xboxlive.com/user/authenticate";
@@ -22,6 +23,7 @@ public class XboxAuthService
     public string? Xuid => _xuid;
     public string? UserHash => _userHash;
     public string? XstsToken => _xstsToken;
+    public string? Gamertag => _gamertag;
     public bool IsAuthenticated => !string.IsNullOrEmpty(_xstsToken) && DateTime.UtcNow < _tokenExpiry;
 
     public XboxAuthService(HttpClient? httpClient = null, ILogger<XboxAuthService>? logger = null)
@@ -57,7 +59,8 @@ public class XboxAuthService
             
             _xstsToken = xstsResponse.Token;
             _xuid = xstsResponse.Xuid;
-            
+            _gamertag = xstsResponse.Gamertag;
+
             // Tokens typically last 1 hour, refresh at 55 minutes to be safe
             _tokenExpiry = DateTime.UtcNow.AddMinutes(55);
             
@@ -181,10 +184,11 @@ public class XboxAuthService
             throw new InvalidOperationException("Failed to parse XSTS token response");
         }
 
-        // Extract XUID from DisplayClaims
+        // Extract XUID and Gamertag from DisplayClaims
         if (tokenResponse.DisplayClaims?.Xui != null && tokenResponse.DisplayClaims.Xui.Count > 0)
         {
             tokenResponse.Xuid = tokenResponse.DisplayClaims.Xui[0].Xid;
+            tokenResponse.Gamertag = tokenResponse.DisplayClaims.Xui[0].Gtg;
         }
 
         return tokenResponse;
@@ -252,12 +256,13 @@ public class XboxAuthService
     {
         [JsonPropertyName("Token")]
         public string Token { get; set; } = null!;
-        
+
         [JsonPropertyName("DisplayClaims")]
         public XboxDisplayClaims? DisplayClaims { get; set; }
-        
+
         // Extracted from DisplayClaims for convenience
         public string? Xuid { get; set; }
+        public string? Gamertag { get; set; }
     }
 
     private class XboxDisplayClaims
